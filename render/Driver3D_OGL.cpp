@@ -418,7 +418,7 @@ TextureHandle Driver3D_OGL::CreateTexture(uint32_t uWidth, uint32_t uHeight, uin
 
     if ( pData )
     {
-        glTexImage2D(GL_TEXTURE_2D, 0, 4, uWidth, uHeight, 0, glFormat, type, pData);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, uWidth, uHeight, 0, glFormat, type, pData);
     }
 
     if ( pData && bGenMips && uFormat == TEX_FORMAT_RGBA8 )
@@ -468,7 +468,7 @@ void Driver3D_OGL::FillTexture(TextureHandle hTex, uint8_t *pData, uint32_t uWid
     GLenum glFormat=GL_RGBA;
 
     glBindTexture(GL_TEXTURE_2D, hTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, 4, uWidth, uHeight, 0, glFormat, type, pData);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, uWidth, uHeight, 0, glFormat, type, pData);
 
     if ( bGenMips )
     {
@@ -563,7 +563,7 @@ void Driver3D_OGL::GenerateMips(uint32_t uWidth, uint32_t uHeight, uint8_t *pDat
                 }
             }
         }
-        glTexImage2D(GL_TEXTURE_2D, nLevel, 4, uWidth, uHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pNextLevel);
+        glTexImage2D(GL_TEXTURE_2D, nLevel, GL_RGBA, uWidth, uHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pNextLevel);
 
         if ( prevLevel && prevLevel != pData )
         {

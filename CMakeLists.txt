@@ -15,13 +15,18 @@ endif(NOT CMAKE_BUILD_TYPE)
 
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 
+option(ENABLE_GLES "Enable openGLES compatible renderer" OFF)
 
 include(CheckLibraryExists)
 
 find_package(DevIL REQUIRED)
 find_package(ENet REQUIRED)
 find_package(GLEW REQUIRED)
+if(ENABLE_GLES)
+find_package(OpenGLES REQUIRED)
+else(ENABLE_GLES)
 find_package(OpenGL REQUIRED)
+endif(ENABLE_GLES)
 find_package(Threads REQUIRED)
 if(NOT WIN32)
     find_package(SDL2 REQUIRED)

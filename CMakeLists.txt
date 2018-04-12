@@ -17,15 +17,24 @@ set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 
 option(ENABLE_GLES "Enable openGLES compatible renderer" OFF)
 
+option(ENABLE_GLEW "Enable GLEW library" OFF)
+
 include(CheckLibraryExists)
 
 find_package(DevIL REQUIRED)
 find_package(ENet REQUIRED)
-find_package(GLEW REQUIRED)
+if(ENABLE_GLEW)
+    find_package(GLEW REQUIRED)
+    add_definitions(-DUSE_GLEW)
+    set(GLEW_LIBRARIES GLEW::GLEW)
+endif(ENABLE_GLEW)
 if(ENABLE_GLES)
-find_package(OpenGLES REQUIRED)
-else(ENABLE_GLES)
-find_package(OpenGL REQUIRED)
+    find_package(OpenGLES REQUIRED)
+    set(OPENGL_LIBRARIES ${OPENGLES_LIBRARIES})
+    add_definitions(-DUSE_GLES)
+    message( "OpenGLES: Using library " ${OPENGLES_gl_LIBRARY} )
+else()
+    find_package(OpenGL REQUIRED)
 endif(ENABLE_GLES)
 find_package(Threads REQUIRED)
 if(NOT WIN32)
@@ -350,11 +359,11 @@ set(xlengine_libraries
     scriptstdstring_addon
     angelscript
     ${ENET_LIBRARIES}
-    GLEW::GLEW
+    ${GLEW_LIBRARIES}
     ${IL_LIBRARIES}
     ${OPENGL_LIBRARIES}
     Threads::Threads)
-
+    
 # Platform-specific includes/libraries.
 if(WIN32)
     set(xlengine_libraries ${xlengine_libraries}

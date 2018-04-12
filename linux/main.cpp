@@ -117,6 +117,11 @@ int main(int argc, char **argv)
     checkSDLError(SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8));
     checkSDLError(SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24));
     checkSDLError(SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, SDL_TRUE));
+#if defined(USE_GLES)
+    checkSDLError(SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES));
+    checkSDLError(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1));
+    checkSDLError(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1));
+#endif
 
     win = SDL_CreateWindow("XL Engine", pos_x, pos_y, width, height, flags);
     if(!win)

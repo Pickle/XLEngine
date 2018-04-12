@@ -11,10 +11,6 @@
     #include <windows.h>
 #endif
 
-#include <GL/glew.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
-
 #define BUFFER_OFFSET(i) ((char *)nullptr + (i))
 
 uint32_t _uPrevVBO = 0xffffffff;
@@ -56,6 +52,11 @@ Vector4 _prevColor(1.0f, 1.0f, 1.0f, 1.0f);
 Driver3D_OGL::Driver3D_OGL() : IDriver3D(), m_pRenderCamera(0)
 {
     m_uTextureCnt = 0;
+
+#if defined(USE_GLES)
+    glMapBufferOES = NULL;
+    glUnmapBufferOES = NULL;
+#endif /* #if defined(USE_GLES) */
 }
 
 Driver3D_OGL::~Driver3D_OGL()
@@ -77,6 +78,9 @@ void Driver3D_OGL::ChangeWindowSize(int32_t w, int32_t h)
 
 bool Driver3D_OGL::Init(int32_t w, int32_t h)
 {
+    const char *output;
+
+#if defined(USE_GLEW)
     //initialize GLEW for extension loading.
     GLenum err = glewInit();
     if (err != GLEW_OK)
@@ -90,6 +94,19 @@ bool Driver3D_OGL::Init(int32_t w, int32_t h)
         #endif
         printf("OpenGL Version 2.1 is not supported. Aborting XL Engine startup.");
     }
+#endif /* defined(USE_GLEW) */
+
+    output = (char*)glGetString( GL_VENDOR );
+    printf( "[OPENGL] GL_VENDOR: %s\n", output );
+    output = (char*)glGetString( GL_RENDERER );
+    printf( "[OPENGL] GL_RENDERER: %s\n", output );
+    output = (char*)glGetString( GL_VERSION );
+    printf( "[OPENGL] GL_VERSION: %s\n", output );
+
+#if defined(USE_GLES)
+    glMapBufferOES = (PFNGLMAPBUFFEROESPROC) SDL_GL_GetProcAddress("glMapBufferOES");
+    glUnmapBufferOES = (PFNGLUNMAPBUFFEROESPROC) SDL_GL_GetProcAddress("glUnmapBufferOES");
+#endif
 
     glEnable(GL_DEPTH_TEST); /* enable depth buffering */
     glDepthFunc(GL_LEQUAL);  /* pedantic, GL_LESS is the default */
@@ -154,12 +171,12 @@ void Driver3D_OGL::EnableAlphaTest(bool bEnable, uint8_t uAlphaCutoff)
     if ( bEnable )
     {
         if ( _bAlphaTestEnable != bEnable ) glEnable(GL_ALPHA_TEST);
-        if ( _uAlphaCutoff != uAlphaCutoff ) 
-        { 
+        if ( _uAlphaCutoff != uAlphaCutoff )
+        {
             const float fOO255 = (1.0f/255.0f);
 
             glAlphaFunc(GL_GREATER, (float)uAlphaCutoff*fOO255);
-            _uAlphaCutoff = uAlphaCutoff; 
+            _uAlphaCutoff = uAlphaCutoff;
         }
     }
     else if ( _bAlphaTestEnable != bEnable )
@@ -218,7 +235,7 @@ void Driver3D_OGL::EnableStencilWriting(bool bEnable, uint32_t uValue)
         if ( _bStencilWriteEnabled == false || _uStencilValue != uValue ) { glStencilFunc(GL_ALWAYS, uValue, 0xff); _uStencilValue = uValue; }
         if ( _bStencilWriteEnabled == false )
         {
-            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE); // We Set The Stencil Buffer To 1 Where We Draw 
+            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE); // We Set The Stencil Buffer To 1 Where We Draw
 
             _bStencilWriteEnabled = true;
             _bStencilTestEnabled = false;
@@ -308,10 +325,10 @@ void Driver3D_OGL::SetTexture(int32_t slot, TextureHandle hTex, uint32_t uFilter
     if ( hTex != XL_INVALID_TEXTURE )
     {
         if ( _bTexEnabled == false ) { glEnable(GL_TEXTURE_2D);_bTexEnabled = true; }
-        if ( _curTex != hTex ) 
-        { 
+        if ( _curTex != hTex )
+        {
             glBindTexture(GL_TEXTURE_2D, hTex);
-            _curTex = hTex; 
+            _curTex = hTex;
         }
         else    //if the texture hasn't changed, return.
         {
@@ -353,7 +370,7 @@ void Driver3D_OGL::SetColor(Vector4 *pColor)
 
     if ( *pColor != _prevColor )
     {
-        glColor4fv(&pColor->x);
+        glColor4f(pColor->x, pColor->y, pColor->z, pColor->w);
         _prevColor = *pColor;
     }
 }
@@ -363,11 +380,13 @@ TextureHandle Driver3D_OGL::CreateTexture(uint32_t uWidth, uint32_t uHeight, uin
     GLint internalFormat=GL_RGBA8;
     GLenum type=GL_UNSIGNED_BYTE;
     GLenum glFormat=GL_RGBA;
+
     if ( uFormat == TEX_FORMAT_RGBA8 )
     {
         internalFormat = GL_RGBA8;
         type = GL_UNSIGNED_BYTE;
     }
+#if !defined(USE_GLES)
     else if ( uFormat == TEX_FORMAT_RGBA16F )
     {
         internalFormat = GL_RGBA16F;
@@ -384,6 +403,13 @@ TextureHandle Driver3D_OGL::CreateTexture(uint32_t uWidth, uint32_t uHeight, uin
         type = GL_FLOAT;
         glFormat = GL_RED;
     }
+#endif
+    else
+    {
+        printf("OpenGL unsupported texture format %X\n", uFormat );
+        return -1;
+    }
+
     uint32_t uTextureID = m_uTextureCnt;
     m_uTextureCnt++;
 
@@ -429,7 +455,7 @@ void Driver3D_OGL::FreeTexture(TextureHandle hTex)
         }
 
         m_uTextureCnt--;
-        //only delete the texture if it's in the list, 
+        //only delete the texture if it's in the list,
         //we don't want to delete it twice by accident.
         glDeleteTextures(1, (GLuint *)&hTex);
     }
@@ -681,11 +707,46 @@ void Driver3D_OGL::RenderIndexedTriangles(IndexBuffer *pIB, int32_t nTriCnt, int
     //To render, we can either use glDrawElements or glDrawRangeElements
     //The is the number of indices. 3 indices needed to make a single triangle
     int idxCnt = nTriCnt*3;
+
+#if defined(USE_GLES)
+    glDrawElements(GL_TRIANGLES, idxCnt, (uStride==2)?GL_UNSIGNED_SHORT:GL_UNSIGNED_INT, BUFFER_OFFSET(startIndex*uStride));
+#else
     glDrawRangeElements(GL_TRIANGLES, 0, idxCnt, idxCnt, (uStride==2)?GL_UNSIGNED_SHORT:GL_UNSIGNED_INT, BUFFER_OFFSET(startIndex*uStride));
+#endif
 }
 
 void Driver3D_OGL::RenderScreenQuad(const Vector4& posScale, const Vector2& uvTop, const Vector2& uvBot, const Vector4& colorTop, const Vector4& colorBot)
 {
+#if defined(USE_GLES)
+    GLfloat tex[] = { uvTop.x, uvTop.y, uvBot.x, uvTop.y,
+                      uvBot.x, uvBot.y, uvTop.x, uvBot.y };
+
+    GLfloat vtx[] = { posScale.x, posScale.y, -1.0f,
+                      posScale.x+posScale.z, posScale.y, -1.0f,
+                      posScale.x+posScale.z, posScale.y+posScale.w, -1.0f,
+                      posScale.x, posScale.y+posScale.w, -1.0f };
+
+    GLfloat clr[] = { colorTop.x, colorTop.y, colorTop.z, colorTop.w,
+                      colorTop.x, colorTop.y, colorTop.z, colorTop.w,
+                      colorBot.x, colorBot.y, colorBot.z, colorBot.w,
+                      colorBot.x, colorBot.y, colorBot.z, colorBot.w };
+
+    glEnableClientState( GL_VERTEX_ARRAY );
+    glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+    glEnableClientState( GL_COLOR_ARRAY );
+
+    glVertexPointer( 3, GL_FLOAT, 0, &vtx[0] );
+    glTexCoordPointer( 2, GL_FLOAT, 0, &tex[0] );
+    glColorPointer( 4, GL_FLOAT, 0, &clr[0] );
+
+    glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+
+    glDisableClientState( GL_COLOR_ARRAY );
+    glDisableClientState( GL_TEXTURE_COORD_ARRAY );
+    glDisableClientState( GL_VERTEX_ARRAY );
+
+#else
+
     glBegin(GL_QUADS);
         if ( _prevColor != colorTop )
         {
@@ -707,15 +768,41 @@ void Driver3D_OGL::RenderScreenQuad(const Vector4& posScale, const Vector2& uvTo
         glTexCoord2f(uvTop.x, uvBot.y);
         glVertex3f(posScale.x, posScale.y+posScale.w, -1.0f);
     glEnd();
+#endif
 }
 
 void Driver3D_OGL::RenderWorldQuad(const Vector3& pos0, const Vector3& pos1, const Vector2& uv0, const Vector2& uv1, const Vector4& color)
 {
+#if defined(USE_GLES)
+    GLfloat tex[] = { uv0.x, uv0.y, uv1.x, uv0.y,
+                      uv1.x, uv1.y, uv0.x, uv1.y };
+
+    GLfloat vtx[] = { pos0.x, pos0.y, pos0.z,
+                      pos1.x, pos1.y, pos0.z,
+                      pos1.x, pos1.y, pos1.z,
+                      pos0.x, pos0.y, pos1.z };
+
+    glColor4f(color.x, color.y, color.z, color.w);
+
+    glEnableClientState( GL_VERTEX_ARRAY );
+    glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+
+    glVertexPointer( 3, GL_FLOAT, 0, &vtx[0] );
+    glTexCoordPointer( 2, GL_FLOAT, 0, &tex[0] );
+
+    glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+
+    glDisableClientState( GL_TEXTURE_COORD_ARRAY );
+    glDisableClientState( GL_VERTEX_ARRAY );
+
+#else
+
     if ( _prevColor != color )
     {
-        glColor4fv(&color.x);
+        glColor4f(color.x, color.y, color.z, color.w);
         _prevColor = color;
     }
+
     glBegin(GL_QUADS);
         glTexCoord2f(uv0.x, uv0.y);
         glVertex3f(pos0.x, pos0.y, pos0.z);
@@ -727,15 +814,41 @@ void Driver3D_OGL::RenderWorldQuad(const Vector3& pos0, const Vector3& pos1, con
         glTexCoord2f(uv0.x, uv1.y);
         glVertex3f(pos0.x, pos0.y, pos1.z);
     glEnd();
+#endif
 }
 
 void Driver3D_OGL::RenderWorldQuad(const Vector3 *posList, const Vector2 *uvList, const Vector4& color, bool bRecieveLighting)
 {
+#if defined(USE_GLES)
+    GLfloat tex[] = { uvList[0].x, uvList[0].y, uvList[1].x, uvList[1].y,
+                      uvList[2].x, uvList[2].y, uvList[3].x, uvList[3].y };
+
+    GLfloat vtx[] = { posList[0].x, posList[0].y, posList[0].z,
+                      posList[1].x, posList[1].y, posList[1].z,
+                      posList[2].x, posList[2].y, posList[2].z,
+                      posList[3].x, posList[3].y, posList[3].z };
+
+    glColor4f(color.x, color.y, color.z, color.w);
+
+    glEnableClientState( GL_VERTEX_ARRAY );
+    glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+
+    glVertexPointer( 3, GL_FLOAT, 0, &vtx[0] );
+    glTexCoordPointer( 2, GL_FLOAT, 0, &tex[0] );
+
+    glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+
+    glDisableClientState( GL_TEXTURE_COORD_ARRAY );
+    glDisableClientState( GL_VERTEX_ARRAY );
+
+#else
+
     if ( _prevColor != color )
     {
-        glColor4fv(&color.x);
+        glColor4f(color.x, color.y, color.z, color.w);
         _prevColor = color;
     }
+
     glBegin(GL_QUADS);
         glTexCoord2f(uvList[0].x, uvList[0].y);
         glVertex3f(posList[0].x, posList[0].y, posList[0].z);
@@ -747,10 +860,40 @@ void Driver3D_OGL::RenderWorldQuad(const Vector3 *posList, const Vector2 *uvList
         glTexCoord2f(uvList[3].x, uvList[3].y);
         glVertex3f(posList[3].x, posList[3].y, posList[3].z);
     glEnd();
+#endif
 }
 
 void Driver3D_OGL::RenderWorldQuad(const Vector3 *posList, const Vector2 *uvList, const Vector4 *color, bool bRecieveLighting)
 {
+#if defined(USE_GLES)
+    GLfloat tex[] = { uvList[0].x, uvList[0].y, uvList[1].x, uvList[1].y,
+                      uvList[2].x, uvList[2].y, uvList[3].x, uvList[3].y };
+
+    GLfloat vtx[] = { posList[0].x, posList[0].y, posList[0].z,
+                      posList[1].x, posList[1].y, posList[1].z,
+                      posList[2].x, posList[2].y, posList[2].z,
+                      posList[3].x, posList[3].y, posList[3].z };
+
+    GLfloat clr[] = { color[0].x, color[0].y, color[0].z, color[0].w,
+                      color[1].x, color[1].y, color[1].z, color[1].w,
+                      color[2].x, color[2].y, color[2].z, color[2].w,
+                      color[3].x, color[3].y, color[3].z, color[3].w };
+
+    glEnableClientState( GL_VERTEX_ARRAY );
+    glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+    glEnableClientState( GL_COLOR_ARRAY );
+
+    glVertexPointer( 3, GL_FLOAT, 0, &vtx[0] );
+    glTexCoordPointer( 2, GL_FLOAT, 0, &tex[0] );
+    glColorPointer( 4, GL_FLOAT, 0, &clr[0] );
+
+    glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+
+    glDisableClientState( GL_TEXTURE_COORD_ARRAY );
+    glDisableClientState( GL_VERTEX_ARRAY );
+    glDisableClientState( GL_COLOR_ARRAY );
+
+#else
     glBegin(GL_QUADS);
         if ( _prevColor != color[0] ) { glColor4fv(&color[0].x); _prevColor = color[0]; }
         glTexCoord2f(uvList[0].x, uvList[0].y);
@@ -766,4 +909,5 @@ void Driver3D_OGL::RenderWorldQuad(const Vector3 *posList, const Vector2 *uvList
         glTexCoord2f(uvList[3].x, uvList[3].y);
         glVertex3f(posList[3].x, posList[3].y, posList[3].z);
     glEnd();
+#endif
 }

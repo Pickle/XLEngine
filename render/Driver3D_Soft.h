@@ -1,6 +1,7 @@
 #ifndef DRIVER3D_SOFT_H
 #define DRIVER3D_SOFT_H
 
+#include "Driver3D.h"
 #include "IDriver3D.h"
 #include "Driver3D_IPlatform.h"
 #include "../math/Matrix.h"
@@ -52,7 +53,7 @@ class Driver3D_Soft : public IDriver3D
         void SetViewMatrix(Matrix *pMtx, Vector3 *pLoc, Vector3 *pDir) override;
         void SetProjMtx(Matrix *pMtx) override;
         void SetCamera(Camera *pCamera) override;
-        
+
         void ChangeWindowSize(int32_t w, int32_t h) override;
 
         //Texture Functions.
@@ -146,7 +147,7 @@ class Driver3D_Soft : public IDriver3D
         PolygonData *m_pCurPolygonData;
 
         Texture *CreateCheckPattern();
-        
+
         void WireframeTriangle(VFmt_Pos_UV_Screen *pScrVert);
         void LocalToWorld(VBO *pVBO);
         void WorldToClip(VBO *pVBO);

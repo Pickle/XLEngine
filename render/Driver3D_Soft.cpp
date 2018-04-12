@@ -22,10 +22,6 @@
     #include <windows.h>
 #endif
 
-#include <GL/glew.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
-
 #define TEST_COLORMAP 0
 #define BUFFER_OFFSET(i) ((char *)nullptr + (i))
 
@@ -175,6 +171,9 @@ Texture *Driver3D_Soft::CreateCheckPattern()
 
 bool Driver3D_Soft::Init(int32_t w, int32_t h)
 {
+    const char *output;
+
+#if defined(USE_GLEW)
     //initialize GLEW for extension loading.
     GLenum err = glewInit();
     if (err != GLEW_OK)
@@ -188,6 +187,14 @@ bool Driver3D_Soft::Init(int32_t w, int32_t h)
         #endif
         printf("OpenGL Version 1.1 is not supported. Aborting XL Engine startup.");
     }
+#endif /* defined(USE_GLEW) */
+
+    output = (char*)glGetString( GL_VENDOR );
+    printf( "[OPENGL] GL_VENDOR: %s\n", output );
+    output = (char*)glGetString( GL_RENDERER );
+    printf( "[OPENGL] GL_RENDERER: %s\n", output );
+    output = (char*)glGetString( GL_VERSION );
+    printf( "[OPENGL] GL_VERSION: %s\n", output );
 
     glDisable(GL_DEPTH_TEST); /* enable depth buffering */
 
@@ -202,7 +209,7 @@ bool Driver3D_Soft::Init(int32_t w, int32_t h)
 
     m_nWindowWidth  = w;
     m_nWindowHeight = h;
-    
+
     //frame size.
     if ( EngineSettings::get().IsFeatureEnabled(EngineSettings::EMULATE_320x200) )
     {
@@ -233,7 +240,7 @@ bool Driver3D_Soft::Init(int32_t w, int32_t h)
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glEnable(GL_TEXTURE_2D);
-    
+
     glFlush();
 
     //allocate the depth buffer.
@@ -319,8 +326,8 @@ void Driver3D_Soft::EnableStencilTesting(bool bEnable)
 }
 
 void Driver3D_Soft::SetBitDepth(int32_t bitDepth)
-{ 
-    m_nBitDepth = bitDepth; 
+{
+    m_nBitDepth = bitDepth;
     TextureLoader::SetTextureColorDepth(8);// m_nBitDepth );
 }
 
@@ -547,7 +554,7 @@ void Driver3D_Soft::Present()
                 uint8_t a = pal[ index+3 ];
 
                 _pCurPal[p] = (a<<24) | (r<<16) | (g<<8) | b;
-    
+
                 index += 4;
             }
             _palIdx = m_uPaletteID;
@@ -579,10 +586,32 @@ void Driver3D_Soft::Present()
     {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_FrameWidth, m_FrameHeight, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, m_pFrameBuffer_32bpp);
     }
-    
+
     //scale and display.
     Vector4 posScale(-1.0f, -1.0f, 2.0f, 2.0f);
     Vector2 uvTop(0, 0), uvBot(1, 1);
+
+#if defined(USE_GLES)
+    GLfloat tex[] = { uvTop.x, uvTop.y, uvBot.x, uvTop.y,
+                      uvBot.x, uvBot.y, uvTop.x, uvBot.y };
+
+    GLfloat vtx[] = { posScale.x, posScale.y, -1.0f,
+                      posScale.x+posScale.z, posScale.y, -1.0f,
+                      posScale.x+posScale.z, posScale.y+posScale.w, -1.0f,
+                      posScale.x, posScale.y+posScale.w, -1.0f };
+
+    glEnableClientState( GL_VERTEX_ARRAY );
+    glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+
+    glVertexPointer( 3, GL_FLOAT, 0, vtx );
+    glTexCoordPointer( 2, GL_FLOAT, 0, tex );
+
+    glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+
+    glDisableClientState( GL_TEXTURE_COORD_ARRAY );
+    glDisableClientState( GL_VERTEX_ARRAY );
+
+#else
 
     glBegin(GL_QUADS);
         glTexCoord2f(uvTop.x, uvTop.y);
@@ -595,6 +624,7 @@ void Driver3D_Soft::Present()
         glTexCoord2f(uvTop.x, uvBot.y);
         glVertex3f(posScale.x, posScale.y+posScale.w, -1.0f);
     glEnd();
+#endif
 
     ClearDrawData();
     m_Platform->Present();
@@ -645,7 +675,7 @@ void Driver3D_Soft::SetWorldMatrix(Matrix *pMtx, int32_t worldX, int32_t worldY)
             m_WorldMtx.m[13] += (worldY - m_pRenderCamera->GetWorldPosY()) * 1024.0f;
         }
         m_WorldView = m_ViewMtx.MatMul( *pMtx );
-        
+
         _prevWorldMtxPtr_Soft = pMtx;
         _prevWorldX = worldX;
         _prevWorldY = worldY;
@@ -778,7 +808,7 @@ TextureHandle Driver3D_Soft::CreateTexture(uint32_t uWidth, uint32_t uHeight, ui
         }
     }
     else
-    {   
+    {
         uint32_t uFrameOffset = 0;
         for (int32_t f=0; f<nFrameCnt; f++)
         {
@@ -881,7 +911,7 @@ void Driver3D_Soft::GenerateMips(uint32_t uWidth, uint32_t uHeight, uint8_t *pDa
 
         uIndex += (w*h);
         pDstData = &pData[uIndex];
-        
+
         pW = w;
         pH = h;
         w >>= 1;
@@ -1016,7 +1046,7 @@ void Driver3D_Soft::LocalToWorld(VBO *pVBO)
         {
             const Vector3 *pos = (Vector3 *)&posStream[offset];
             const Vector2 *uv  = (Vector2 *)&uvStream[offset];
-            
+
             pWorld[v].pos[0] = pos->x;
             pWorld[v].pos[1] = pos->y;
             pWorld[v].pos[2] = pos->z;
@@ -1039,7 +1069,7 @@ void Driver3D_Soft::LocalToWorld(VBO *pVBO)
         {
             Vector3 *pos = (Vector3 *)&posStream[offset];
             const Vector2 *uv  = (Vector2 *)&uvStream[offset];
-            
+
             Vector3 posWS = m_WorldMtx.TransformVector(*pos);
             pWorld[v].pos[0] = posWS.x;
             pWorld[v].pos[1] = posWS.y;
@@ -1132,11 +1162,11 @@ void Driver3D_Soft::RenderIndexedTriangles(IndexBuffer *pIB, int32_t nTriCnt, in
                 if ( d2 > polyData[t].radius2_WS )
                      polyData[t].radius2_WS = d2;
             }
-            
+
             //Compute the world space normal.
-            Vector3 U( pWorld[pIdx[2]].pos[0] - pWorld[pIdx[0]].pos[0], pWorld[pIdx[2]].pos[1] - pWorld[pIdx[0]].pos[1], 
+            Vector3 U( pWorld[pIdx[2]].pos[0] - pWorld[pIdx[0]].pos[0], pWorld[pIdx[2]].pos[1] - pWorld[pIdx[0]].pos[1],
                 pWorld[pIdx[2]].pos[2] - pWorld[pIdx[0]].pos[2] );
-            Vector3 V( pWorld[pIdx[1]].pos[0] - pWorld[pIdx[0]].pos[0], pWorld[pIdx[1]].pos[1] - pWorld[pIdx[0]].pos[1], 
+            Vector3 V( pWorld[pIdx[1]].pos[0] - pWorld[pIdx[0]].pos[0], pWorld[pIdx[1]].pos[1] - pWorld[pIdx[0]].pos[1],
                 pWorld[pIdx[1]].pos[2] - pWorld[pIdx[0]].pos[2] );
             polyData[t].nrmlWS.Cross(U, V);
             polyData[t].nrmlWS.Normalize();
@@ -1253,7 +1283,7 @@ void Driver3D_Soft::RenderScreenQuad(const Vector4& posScale, const Vector2& uvT
     int32_t x = (int32_t)(posScale.x*m_QuadWidthScale);
     int32_t y = (int32_t)(m_FrameHeight-posScale.y*m_QuadHeightScale-h);
     if ( y < 0 ) y = 0;
-    
+
     int32_t dudx = Fixed16_16Math::FloatToFixed( (float)tw / (float)w );
     int32_t dvdy = Fixed16_16Math::FloatToFixed( (float)th / (float)h );
 
@@ -1310,7 +1340,7 @@ void Driver3D_Soft::RenderScreenQuad_8bpp(const Vector4& posScale, const Vector2
     int32_t x = (int32_t)(posScale.x*m_QuadWidthScale);
     int32_t y = (int32_t)(m_FrameHeight-posScale.y*m_QuadHeightScale-h);
     if ( y < 0 ) y = 0;
-    
+
     int32_t dudx = Fixed16_16Math::FloatToFixed( (float)tw / (float)w );
     int32_t dvdy = Fixed16_16Math::FloatToFixed( (float)th / (float)h );
 

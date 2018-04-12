@@ -1,6 +1,7 @@
 #ifndef DRIVER3D_OGL_H
 #define DRIVER3D_OGL_H
 
+#include "Driver3D.h"
 #include "IDriver3D.h"
 #include "Driver3D_IPlatform.h"
 #include "../math/Matrix.h"
@@ -77,6 +78,11 @@ class Driver3D_OGL : public IDriver3D
     private:
         uint32_t m_Textures[16384];
         uint32_t m_uTextureCnt;
+
+#if defined(USE_GLES)
+        PFNGLMAPBUFFEROESPROC glMapBufferOES;
+        PFNGLUNMAPBUFFEROESPROC glUnmapBufferOES;
+#endif /* defined(USE_GLES) */
 
         Camera *m_pRenderCamera;
 };

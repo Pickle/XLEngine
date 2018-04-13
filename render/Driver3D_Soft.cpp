@@ -189,6 +189,7 @@ bool Driver3D_Soft::Init(int32_t w, int32_t h)
     }
 #endif /* defined(USE_GLEW) */
 
+    printf( "[OPENGL] Using SW renderer\n" );
     output = (char*)glGetString( GL_VENDOR );
     printf( "[OPENGL] GL_VENDOR: %s\n", output );
     output = (char*)glGetString( GL_RENDERER );

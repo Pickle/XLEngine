@@ -18,7 +18,7 @@
     #define GL_RGBA8        GL_RGBA
     #define GL_CLAMP        GL_CLAMP_TO_EDGE
     #define GL_WRITE_ONLY   GL_WRITE_ONLY_OES
-    #define GL_UNSIGNED_INT_8_8_8_8_REV  GL_UNSIGNED_INT_24_8_OES
+    #define GL_UNSIGNED_INT_8_8_8_8_REV  GL_UNSIGNED_BYTE
 
     #include <GLES/gl.h>
     #include <GLES/glext.h>

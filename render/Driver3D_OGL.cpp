@@ -68,12 +68,25 @@ Driver3D_OGL::~Driver3D_OGL()
     }
 }
 
+void Driver3D_OGL::CheckErrorGL(int line)
+{
+    GLenum error;
+
+    error = glGetError();
+    if (error != GL_NO_ERROR)
+    {
+        printf( "OpenGL Error at line %d code %X", line, error );
+    }
+}
+
 void Driver3D_OGL::ChangeWindowSize(int32_t w, int32_t h)
 {
     glViewport(0, 0, w, h);
 
     m_nWindowWidth  = w;
     m_nWindowHeight = h;
+
+    CheckErrorGL( __LINE__ );
 }
 
 bool Driver3D_OGL::Init(int32_t w, int32_t h)
@@ -96,6 +109,7 @@ bool Driver3D_OGL::Init(int32_t w, int32_t h)
     }
 #endif /* defined(USE_GLEW) */
 
+    printf( "[OPENGL] Using HW renderer\n" );
     output = (char*)glGetString( GL_VENDOR );
     printf( "[OPENGL] GL_VENDOR: %s\n", output );
     output = (char*)glGetString( GL_RENDERER );
@@ -139,6 +153,8 @@ bool Driver3D_OGL::Init(int32_t w, int32_t h)
 
     glFlush();
 
+    CheckErrorGL( __LINE__ );
+
     return true;
 }
 
@@ -164,6 +180,8 @@ void Driver3D_OGL::EnableCulling(bool bEnable)
             glDisable(GL_CULL_FACE);
     }
     _bCullingEnabled = bEnable;
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::EnableAlphaTest(bool bEnable, uint8_t uAlphaCutoff)
@@ -184,6 +202,8 @@ void Driver3D_OGL::EnableAlphaTest(bool bEnable, uint8_t uAlphaCutoff)
         glDisable(GL_ALPHA_TEST);
     }
     _bAlphaTestEnable = bEnable;
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::SetBlendMode(uint32_t uMode)
@@ -207,6 +227,8 @@ void Driver3D_OGL::SetBlendMode(uint32_t uMode)
         };
         _uBlendFunc = uMode;
     }
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::SetFogDensity(float fDensity)
@@ -225,6 +247,8 @@ void Driver3D_OGL::EnableFog(bool bEnable, float fEnd)
             glDisable(GL_FOG);
         _bFogEnable = bEnable;
     }
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::EnableStencilWriting(bool bEnable, uint32_t uValue)
@@ -246,6 +270,8 @@ void Driver3D_OGL::EnableStencilWriting(bool bEnable, uint32_t uValue)
         if ( _bStencilEnable != bEnable ) glDisable(GL_STENCIL_TEST);
     }
     _bStencilEnable = bEnable;
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::EnableStencilTesting(bool bEnable)
@@ -267,12 +293,16 @@ void Driver3D_OGL::EnableStencilTesting(bool bEnable)
         if ( _bStencilEnable != bEnable ) glDisable(GL_STENCIL_TEST);
     }
     _bStencilEnable = bEnable;
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::Present()
 {
     ClearDrawData();
     m_Platform->Present();
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::Clear(bool bClearColor)
@@ -280,6 +310,8 @@ void Driver3D_OGL::Clear(bool bClearColor)
     GLbitfield mask = GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
     if ( bClearColor ) mask |= GL_COLOR_BUFFER_BIT;
     glClear( mask );
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::SetWorldMatrix(Matrix *pMtx, int32_t worldX, int32_t worldY)
@@ -298,6 +330,8 @@ void Driver3D_OGL::SetWorldMatrix(Matrix *pMtx, int32_t worldX, int32_t worldY)
 
         _prevWorldMtxPtr = pMtx;
     }
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::SetViewMatrix(Matrix *pMtx, Vector3 *pLoc, Vector3 *pDir)
@@ -312,6 +346,8 @@ void Driver3D_OGL::SetProjMtx(Matrix *pMtx)
 {
     glMatrixMode(GL_PROJECTION);                        // Select The Projection Matrix
     glLoadMatrixf( pMtx->GetFloatPtr() );
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::SetCamera(Camera *pCamera)
@@ -362,6 +398,8 @@ void Driver3D_OGL::SetTexture(int32_t slot, TextureHandle hTex, uint32_t uFilter
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, bWrap ? GL_REPEAT : GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, bWrap ? GL_REPEAT : GL_CLAMP);
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::SetColor(Vector4 *pColor)
@@ -373,6 +411,8 @@ void Driver3D_OGL::SetColor(Vector4 *pColor)
         glColor4f(pColor->x, pColor->y, pColor->z, pColor->w);
         _prevColor = *pColor;
     }
+
+    CheckErrorGL( __LINE__ );
 }
 
 TextureHandle Driver3D_OGL::CreateTexture(uint32_t uWidth, uint32_t uHeight, uint32_t uFormat/*=TEX_FORMAT_RGBA8*/, uint8_t *pData/*=nullptr*/, bool bGenMips/*=false*/, int32_t nFrameCnt/*=1*/)
@@ -404,11 +444,6 @@ TextureHandle Driver3D_OGL::CreateTexture(uint32_t uWidth, uint32_t uHeight, uin
         glFormat = GL_RED;
     }
 #endif
-    else
-    {
-        printf("OpenGL unsupported texture format %X\n", uFormat );
-        return -1;
-    }
 
     uint32_t uTextureID = m_uTextureCnt;
     m_uTextureCnt++;
@@ -416,12 +451,26 @@ TextureHandle Driver3D_OGL::CreateTexture(uint32_t uWidth, uint32_t uHeight, uin
     glGenTextures(1, (GLuint *)&m_Textures[uTextureID]);
     glBindTexture(GL_TEXTURE_2D, m_Textures[uTextureID]);
 
+    if ( pData && bGenMips && (uFormat == TEX_FORMAT_RGBA8) )
+    {
+        glTexParameteri( GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+    }
+    else
+    {
+        glTexParameteri( GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_FALSE );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+    }
+
     if ( pData )
     {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, uWidth, uHeight, 0, glFormat, type, pData);
     }
 
-    if ( pData && bGenMips && uFormat == TEX_FORMAT_RGBA8 )
+#if 0
+    if ( pData && bGenMips && (uFormat == TEX_FORMAT_RGBA8) )
     {
         GenerateMips(uWidth, uHeight, pData);
     }
@@ -430,6 +479,9 @@ TextureHandle Driver3D_OGL::CreateTexture(uint32_t uWidth, uint32_t uHeight, uin
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
+#endif
+
+    CheckErrorGL( __LINE__ );
 
     return m_Textures[uTextureID];
 }
@@ -459,6 +511,8 @@ void Driver3D_OGL::FreeTexture(TextureHandle hTex)
         //we don't want to delete it twice by accident.
         glDeleteTextures(1, (GLuint *)&hTex);
     }
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::FillTexture(TextureHandle hTex, uint8_t *pData, uint32_t uWidth, uint32_t uHeight, bool bGenMips/*=false*/)
@@ -467,13 +521,30 @@ void Driver3D_OGL::FillTexture(TextureHandle hTex, uint8_t *pData, uint32_t uWid
     GLenum type=GL_UNSIGNED_BYTE;
     GLenum glFormat=GL_RGBA;
 
+    if ( bGenMips )
+    {
+        glTexParameteri( GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+    }
+    else
+    {
+        glTexParameteri( GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_FALSE );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+    }
+
     glBindTexture(GL_TEXTURE_2D, hTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, uWidth, uHeight, 0, glFormat, type, pData);
 
+#if 0
     if ( bGenMips )
     {
         GenerateMips(uWidth, uHeight, pData);
     }
+#endif
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::GenerateMips(uint32_t uWidth, uint32_t uHeight, uint8_t *pData)
@@ -585,6 +656,8 @@ void Driver3D_OGL::GenerateMips(uint32_t uWidth, uint32_t uHeight, uint8_t *pDat
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    CheckErrorGL( __LINE__ );
 }
 
 /*************** VBO/IBO Support *****************/
@@ -602,6 +675,8 @@ void Driver3D_OGL::AllocVBO_Mem(uint32_t uID, uint32_t uVtxCnt, uint32_t uSize, 
     glBufferData(GL_ARRAY_BUFFER, uSize, nullptr, bDynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     _uBindBufferVB = 0;
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::FillVBO(uint32_t uID, void *pData, uint32_t uSize, bool bDynamic)
@@ -620,6 +695,8 @@ void Driver3D_OGL::FillVBO(uint32_t uID, void *pData, uint32_t uSize, bool bDyna
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     _uBindBufferVB = 0;
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::SetVBO(uint32_t uID, uint32_t uStride, uint32_t uVBO_Flags)
@@ -661,6 +738,8 @@ void Driver3D_OGL::SetVBO(uint32_t uID, uint32_t uStride, uint32_t uVBO_Flags)
         uOffset += 8;
     }
     _uPrevVBO = uID;
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::DeleteBuffer(uint32_t uID)
@@ -673,6 +752,8 @@ uint32_t Driver3D_OGL::CreateIB()
     uint32_t uIB_ID;
     glGenBuffers(1, (GLuint *)&uIB_ID);
 
+    CheckErrorGL( __LINE__ );
+
     return uIB_ID;
 }
 
@@ -682,6 +763,8 @@ void Driver3D_OGL::FillIB(uint32_t uID, void *pData, uint32_t uSize, bool bDynam
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, uSize, pData, bDynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     _uBindBufferIB = 0;
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::ClearDrawData()
@@ -695,6 +778,8 @@ void Driver3D_OGL::ClearDrawData()
     SetTexture(0, XL_INVALID_TEXTURE);
 
     _uPrevVBO = 0xffffffff;
+
+    CheckErrorGL( __LINE__ );
 }
 
 //The function assumes a vertex buffer has already been set.
@@ -713,6 +798,8 @@ void Driver3D_OGL::RenderIndexedTriangles(IndexBuffer *pIB, int32_t nTriCnt, int
 #else
     glDrawRangeElements(GL_TRIANGLES, 0, idxCnt, idxCnt, (uStride==2)?GL_UNSIGNED_SHORT:GL_UNSIGNED_INT, BUFFER_OFFSET(startIndex*uStride));
 #endif
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::RenderScreenQuad(const Vector4& posScale, const Vector2& uvTop, const Vector2& uvBot, const Vector4& colorTop, const Vector4& colorBot)
@@ -734,6 +821,7 @@ void Driver3D_OGL::RenderScreenQuad(const Vector4& posScale, const Vector2& uvTo
     glEnableClientState( GL_VERTEX_ARRAY );
     glEnableClientState( GL_TEXTURE_COORD_ARRAY );
     glEnableClientState( GL_COLOR_ARRAY );
+    glDisableClientState(GL_NORMAL_ARRAY);
 
     glVertexPointer( 3, GL_FLOAT, 0, &vtx[0] );
     glTexCoordPointer( 2, GL_FLOAT, 0, &tex[0] );
@@ -769,6 +857,8 @@ void Driver3D_OGL::RenderScreenQuad(const Vector4& posScale, const Vector2& uvTo
         glVertex3f(posScale.x, posScale.y+posScale.w, -1.0f);
     glEnd();
 #endif
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::RenderWorldQuad(const Vector3& pos0, const Vector3& pos1, const Vector2& uv0, const Vector2& uv1, const Vector4& color)
@@ -786,6 +876,8 @@ void Driver3D_OGL::RenderWorldQuad(const Vector3& pos0, const Vector3& pos1, con
 
     glEnableClientState( GL_VERTEX_ARRAY );
     glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+    glDisableClientState( GL_COLOR_ARRAY );
+    glDisableClientState( GL_NORMAL_ARRAY );
 
     glVertexPointer( 3, GL_FLOAT, 0, &vtx[0] );
     glTexCoordPointer( 2, GL_FLOAT, 0, &tex[0] );
@@ -815,6 +907,8 @@ void Driver3D_OGL::RenderWorldQuad(const Vector3& pos0, const Vector3& pos1, con
         glVertex3f(pos0.x, pos0.y, pos1.z);
     glEnd();
 #endif
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::RenderWorldQuad(const Vector3 *posList, const Vector2 *uvList, const Vector4& color, bool bRecieveLighting)
@@ -832,6 +926,8 @@ void Driver3D_OGL::RenderWorldQuad(const Vector3 *posList, const Vector2 *uvList
 
     glEnableClientState( GL_VERTEX_ARRAY );
     glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+    glDisableClientState( GL_COLOR_ARRAY );
+    glDisableClientState( GL_NORMAL_ARRAY );
 
     glVertexPointer( 3, GL_FLOAT, 0, &vtx[0] );
     glTexCoordPointer( 2, GL_FLOAT, 0, &tex[0] );
@@ -861,6 +957,8 @@ void Driver3D_OGL::RenderWorldQuad(const Vector3 *posList, const Vector2 *uvList
         glVertex3f(posList[3].x, posList[3].y, posList[3].z);
     glEnd();
 #endif
+
+    CheckErrorGL( __LINE__ );
 }
 
 void Driver3D_OGL::RenderWorldQuad(const Vector3 *posList, const Vector2 *uvList, const Vector4 *color, bool bRecieveLighting)
@@ -882,6 +980,7 @@ void Driver3D_OGL::RenderWorldQuad(const Vector3 *posList, const Vector2 *uvList
     glEnableClientState( GL_VERTEX_ARRAY );
     glEnableClientState( GL_TEXTURE_COORD_ARRAY );
     glEnableClientState( GL_COLOR_ARRAY );
+    glDisableClientState( GL_NORMAL_ARRAY );
 
     glVertexPointer( 3, GL_FLOAT, 0, &vtx[0] );
     glTexCoordPointer( 2, GL_FLOAT, 0, &tex[0] );
@@ -910,4 +1009,6 @@ void Driver3D_OGL::RenderWorldQuad(const Vector3 *posList, const Vector2 *uvList
         glVertex3f(posList[3].x, posList[3].y, posList[3].z);
     glEnd();
 #endif
+
+    CheckErrorGL( __LINE__ );
 }

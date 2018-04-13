@@ -75,6 +75,8 @@ class Driver3D_OGL : public IDriver3D
 
         void GenerateMips(uint32_t uWidth, uint32_t uHeight, uint8_t *pData);
 
+        void CheckErrorGL(int line);
+
     private:
         uint32_t m_Textures[16384];
         uint32_t m_uTextureCnt;

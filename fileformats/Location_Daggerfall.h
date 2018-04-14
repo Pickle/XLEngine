@@ -6,7 +6,11 @@
 #include <string>
 #include <map>
 
+class Location_Daggerfall;
 class WorldCell;
+
+using NameLocationMap = std::map<std::string, Location_Daggerfall*>;
+using LocationMap = std::map<uint64_t, Location_Daggerfall*>;
 
 class Location_Daggerfall
 {
@@ -14,9 +18,7 @@ public:
     Location_Daggerfall();
     ~Location_Daggerfall();
 
-    //Save and Load cached data.
-    void Save(FILE *f);
-    bool Load(FILE *f, std::map<uint64_t, Location_Daggerfall *>& mapLoc, std::map<std::string, Location_Daggerfall *>& mapNames);
+    void LoadLoc(const char *pData, int index, const int RegIdx, LocationMap &mapLoc, NameLocationMap &mapNames);
 
 public:
     struct LocName
@@ -61,10 +63,6 @@ public:
     Region_Daggerfall();
     ~Region_Daggerfall();
 
-    //Save and load cached data.
-    void Save(FILE *f);
-    bool Load(FILE *f, std::map<uint64_t, Location_Daggerfall *>& mapLoc, std::map<std::string, Location_Daggerfall *>& mapNames);
-
 public:
     uint32_t m_uLocationCount;
     std::unique_ptr<Location_Daggerfall[]> m_pLocations;
@@ -76,7 +74,7 @@ public:
     static void Init();
     static void Destroy();
 
-    //load cached data from disk if present.
+    //load data from disk.
     static bool Load();
 
     static Location_Daggerfall *GetLocation(int32_t x, int32_t y);
@@ -88,15 +86,13 @@ public:
 private:
     //generate the cached data.
     static bool Cache();
-    //save cache data to disk.
-    static void Save();
 
 public:
     static uint32_t m_uRegionCount;
     static std::unique_ptr<Region_Daggerfall[]> m_pRegions;
-    static std::map<uint64_t, Location_Daggerfall *> m_MapLoc;
+    static LocationMap m_MapLoc;
     static std::map<uint64_t, WorldCell *> m_MapCell;
-    static std::map<std::string, Location_Daggerfall *> m_MapNames;
+    static NameLocationMap m_MapNames;
     static bool m_bMapLoaded;
 };
 

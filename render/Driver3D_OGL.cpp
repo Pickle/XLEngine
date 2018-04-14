@@ -2,8 +2,9 @@
 #include "../Engine.h"
 #include "../math/Math.h"
 #include "IndexBuffer.h"
+#include "Camera.h"
 #include <cstdio>
-#include <malloc.h>
+#include <cstdlib>
 
 #if PLATFORM_WIN    //we have to include Windows.h before gl.h on Windows platforms.
     #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
@@ -323,7 +324,12 @@ void Driver3D_OGL::SetWorldMatrix(Matrix *pMtx, int32_t worldX, int32_t worldY)
     else if ( pMtx != _prevWorldMtxPtr )
     {
         m_WorldMtx = *pMtx;
-        m_WorldView = m_ViewMtx.MatMul( *pMtx );
+        if ( worldX || worldY )
+        {
+            m_WorldMtx.m[12] += (worldX - m_pRenderCamera->GetWorldPosX()) * 1024.0f;
+            m_WorldMtx.m[13] += (worldY - m_pRenderCamera->GetWorldPosY()) * 1024.0f;
+        }
+        m_WorldView = m_ViewMtx.MatMul( m_WorldMtx );
 
         glMatrixMode(GL_MODELVIEW);                         // Select The Modelview Matrix
         glLoadMatrixf( m_WorldView.GetFloatPtr() );
@@ -334,7 +340,7 @@ void Driver3D_OGL::SetWorldMatrix(Matrix *pMtx, int32_t worldX, int32_t worldY)
     CheckErrorGL( __LINE__ );
 }
 
-void Driver3D_OGL::SetViewMatrix(Matrix *pMtx, Vector3 *pLoc, Vector3 *pDir)
+void Driver3D_OGL::SetViewMatrix(Matrix *pMtx, const Vector3 *pLoc, const Vector3 *pDir)
 {
     m_ViewMtx = *pMtx;
     m_Eye = *pLoc;
@@ -402,7 +408,7 @@ void Driver3D_OGL::SetTexture(int32_t slot, TextureHandle hTex, uint32_t uFilter
     CheckErrorGL( __LINE__ );
 }
 
-void Driver3D_OGL::SetColor(Vector4 *pColor)
+void Driver3D_OGL::SetColor(const Vector4 *pColor)
 {
     if ( pColor == nullptr ) pColor = &Vector4::One;
 

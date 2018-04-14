@@ -1,5 +1,7 @@
 #include "Sector.h"
 
+#include <algorithm>
+
 uint32_t Sector::s_MaxSecDrawCnt=0;
 
 Sector::Sector()
@@ -32,14 +34,10 @@ void Sector::AddObject(uint32_t uHandle)
 void Sector::RemoveObject(uint32_t uHandle)
 {
     //search for object handle and then erase it.
-    std::vector<uint32_t>::iterator iObj = m_Objects.begin();
-    std::vector<uint32_t>::iterator eObj = m_Objects.end();
-    for ( ; iObj != eObj; ++iObj )
+    const auto iter = std::find(m_Objects.begin(), m_Objects.end(), uHandle);
+
+    if (iter != m_Objects.end())
     {
-        if ( *iObj == uHandle )
-        {
-            m_Objects.erase( iObj );
-            break;
-        }
+        m_Objects.erase(iter);
     }
 }

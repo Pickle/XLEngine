@@ -232,15 +232,11 @@ void ObjectManager::FreeObject(Object *pObj)
     m_FreeObjects.push_back( pObj );
 
     //remove this from the active object list.
-    std::vector<Object *>::iterator iObj = m_ActiveObjects.begin();
-    std::vector<Object *>::iterator eObj = m_ActiveObjects.end();
-    for (; iObj != eObj; ++iObj)
+    const auto iter = std::find(m_ActiveObjects.begin(), m_ActiveObjects.end(), pObj);
+
+    if (iter != m_ActiveObjects.end())
     {
-        if ( (*iObj) == pObj )
-        {
-            m_ActiveObjects.erase( iObj );
-            break;
-        }
+        m_ActiveObjects.erase(iter);
     }
 }
 

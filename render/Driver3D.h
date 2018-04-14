@@ -20,11 +20,9 @@
     #define GL_WRITE_ONLY   GL_WRITE_ONLY_OES
     #define GL_UNSIGNED_INT_8_8_8_8_REV  GL_UNSIGNED_BYTE
 
-    #include <GLES/gl.h>
-    #include <GLES/glext.h>
+    #include "SDL_opengles.h"
 #else
-    #include <GL/gl.h>
-    #include <GL/glext.h>
+    #include "SDL_opengl.h"
 #endif
 
 #endif // DRIVER3D_H_INCLUDED

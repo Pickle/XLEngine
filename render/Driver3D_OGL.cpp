@@ -821,7 +821,7 @@ void Driver3D_OGL::RenderScreenQuad(const Vector4& posScale, const Vector2& uvTo
     glEnableClientState( GL_VERTEX_ARRAY );
     glEnableClientState( GL_TEXTURE_COORD_ARRAY );
     glEnableClientState( GL_COLOR_ARRAY );
-    glDisableClientState(GL_NORMAL_ARRAY);
+    glDisableClientState( GL_NORMAL_ARRAY );
 
     glVertexPointer( 3, GL_FLOAT, 0, &vtx[0] );
     glTexCoordPointer( 2, GL_FLOAT, 0, &tex[0] );
